@@ -1,0 +1,9 @@
+name: aqua_fisher
+publish_to: none
+
+environment:
+  sdk: ^3.14.0
+
+workspace:
+  - apps/mobile
+  - packages/dart-sdk

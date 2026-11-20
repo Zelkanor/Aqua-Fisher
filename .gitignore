@@ -1,0 +1,104 @@
+# ==============================================================================
+# Aqua Fisher v2 — Centralized Monorepo .gitignore
+# ==============================================================================
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+!**/.env.example
+apps/mobile/.env.json
+!apps/mobile/.env.example.json
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+*firebase-adminsdk*.json
+service-account*.json
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/Runner/GoogleService-Info.plist
+
+# --- Python / uv Workspace ---
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# --- Node / pnpm / Turborepo / Next.js ---
+node_modules/
+.pnpm-store/
+.turbo/
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+*.tsbuildinfo
+
+# --- Dart / Flutter (Pub Workspaces & Mobile) ---
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+.build/
+.buildlog/
+.swiftpm/
+.widget_preview/
+migrate_working_dir/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+coverage/
+app.*.symbols
+app.*.map.json
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Flutter/ephemeral/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/key.properties
+apps/mobile/android/app/debug
+apps/mobile/android/app/profile
+apps/mobile/android/app/release
+apps/mobile/linux/flutter/ephemeral/
+apps/mobile/macos/Flutter/ephemeral/
+apps/mobile/windows/flutter/ephemeral/
+
+# --- Firmware (PlatformIO / ESP32) ---
+firmware/**/.pio/
+firmware/**/.vscode/.browse.c_cpp.db*
+
+# --- IDE / Editor / OS / Misc ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.atom/
+.history
+.svn/
+*.class
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# --- Logs & Scratch ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+tmp/
