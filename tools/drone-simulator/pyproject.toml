@@ -1,0 +1,23 @@
+[project]
+name = "drone-simulator"
+version = "2.0.0"
+description = "Site-agnostic multi-stream MQTT + camera simulator for Aqua Sentinel v2"
+requires-python = ">=3.12"
+dependencies = [
+    "aqua-contracts",
+    "aiomqtt>=2.3.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.10.0",
+    "shapely>=2.0.6",
+    "typer>=0.13.0",
+]
+
+[project.scripts]
+aqua-sim = "sim:app"
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["sim"]

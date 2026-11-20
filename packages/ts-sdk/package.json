@@ -1,0 +1,22 @@
+{
+  "name": "@aqua/ts-sdk",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./mqtt/*": "./src/generated/mqtt/*.ts",
+    "./api": "./src/generated/api.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf .turbo"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

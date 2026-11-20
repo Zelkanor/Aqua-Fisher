@@ -1,0 +1,33 @@
+[project]
+name = "aqua-workers"
+version = "2.0.0"
+description = "Aqua Sentinel v2 Async Compute Workers (NodeODM Photogrammetry, Kriging/Plume Sim, AI Limnologist)"
+requires-python = ">=3.12"
+dependencies = [
+    "aqua-contracts",
+    "arq>=0.26.1",
+    "asyncpg>=0.30.0",
+    "boto3>=1.35.0",
+    "geoalchemy2>=0.15.2",
+    "httpx>=0.28.0",
+    "numpy>=2.1.0",
+    "openai>=1.55.0",
+    "pdfplumber>=0.11.4",
+    "piexif>=1.1.3",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "pykrige>=1.7.2",
+    "rasterio>=1.4.2",
+    "redis>=5.2.0",
+    "scipy>=1.14.0",
+    "shapely>=2.0.6",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "structlog>=24.4.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aqua_workers"]

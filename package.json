@@ -1,0 +1,22 @@
+{
+  "name": "aqua_fisher",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "codegen": "turbo run codegen",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "turbo": "^2.11.13"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -1,0 +1,181 @@
+name: aqua-fisher
+
+networks:
+  aqua_net:
+    driver: bridge
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    container_name: aqua_postgres
+    restart: unless-stopped
+    shm_size: 512mb
+    networks:
+      - aqua_net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aqua}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aqua_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-aqua_sentinel}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # CRITICAL: timescaledb-ha uses /home/postgres/pgdata/data (NOT /var/lib/postgresql/data)
+      - pg_data:/home/postgres/pgdata/data
+      - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/01-init-extensions.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-aqua} -d ${POSTGRES_DB:-aqua_sentinel}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: aqua_redis
+    restart: unless-stopped
+    networks:
+      - aqua_net
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx:5.8
+    container_name: aqua_emqx
+    restart: unless-stopped
+    networks:
+      - aqua_net
+    extra_hosts:
+      # Enables EMQX HTTP Auth/ACL webhooks to reach host-run FastAPI on Linux
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_TLS_PORT:-8883}:8883"
+      - "${MQTT_DASHBOARD_PORT:-18083}:18083"
+    environment:
+      EMQX_NODE__COOKIE: ${EMQX_NODE_COOKIE:-aqua_secret_cookie}
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - ./emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Ensures the named volume is writable by RustFS's non-root UID 10001 on Linux
+  s3-volume-init:
+    image: alpine:3.21
+    container_name: aqua_s3_volume_init
+    restart: "no"
+    command: ["sh", "-c", "chown -R 10001:10001 /data"]
+    volumes:
+      - s3_data:/data
+
+  # Drop-in S3-compatible object storage (replaces withdrawn minio/minio Docker Hub image)
+  s3:
+    image: rustfs/rustfs:latest
+    container_name: aqua_s3
+    restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    depends_on:
+      s3-volume-init:
+        condition: service_completed_successfully
+    networks:
+      aqua_net:
+        aliases:
+          - minio
+          - s3
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER:-aqua_minio}
+      RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-aqua_minio_password}
+      RUSTFS_CORS_ALLOWED_ORIGINS: "http://localhost:3000"
+      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: "http://localhost:9001"
+      RUSTFS_OBS_LOGGER_LEVEL: "info"
+    ports:
+      - "9000:9000" # S3 API (presigned PUT/GET)
+      - "9001:9001" # Web Console (http://localhost:9001/rustfs/console/)
+    volumes:
+      - s3_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://127.0.0.1:9000/health && curl -sf http://127.0.0.1:9001/rustfs/console/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # Idempotently creates the 3 private S3 buckets from Spec Section 4.2
+  s3-init:
+    image: amazon/aws-cli:latest
+    container_name: aqua_s3_init
+    restart: "no"
+    networks:
+      - aqua_net
+    depends_on:
+      s3:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-aqua_minio}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-aqua_minio_password}
+      AWS_DEFAULT_REGION: us-east-1
+      MINIO_BUCKET_RAW_MEDIA: ${MINIO_BUCKET_RAW_MEDIA:-aqua-raw-media}
+      MINIO_BUCKET_TWIN_ASSETS: ${MINIO_BUCKET_TWIN_ASSETS:-aqua-twin-assets}
+      MINIO_BUCKET_REPORTS: ${MINIO_BUCKET_REPORTS:-aqua-reports}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        for bucket in "$${MINIO_BUCKET_RAW_MEDIA}" "$${MINIO_BUCKET_TWIN_ASSETS}" "$${MINIO_BUCKET_REPORTS}"; do
+          if aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$${bucket}" 2>/dev/null; then
+            echo "Bucket already exists: $${bucket}"
+          else
+            aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$${bucket}"
+            echo "Created private bucket: $${bucket}"
+          fi
+        done
+        echo "All Aqua Sentinel S3 buckets verified."
+
+  # Start explicitly via `make up-full` (requires >=16GB RAM)
+  nodeodm:
+    image: opendronemap/nodeodm:latest
+    container_name: aqua_nodeodm
+    restart: unless-stopped
+    networks:
+      - aqua_net
+    ports:
+      - "${NODEODM_PORT:-3001}:3000"
+    profiles: ["photogrammetry"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3000/info || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  pg_data:
+  redis_data:
+  emqx_data:
+  s3_data:
